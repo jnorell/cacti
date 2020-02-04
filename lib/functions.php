@@ -5332,31 +5332,40 @@ function get_debug_prefix() {
 }
 
 function get_client_addr($client_addr = false) {
-	if (isset($_SERVER['X-Forwarded-For'])) {
-		$client_addr = $_SERVER['X-Forwarded-For'];
-	} elseif (isset($_SERVER['X-Client-IP'])) {
-		$client_addr = $_SERVER['X-Client-IP'];
-	} elseif (isset($_SERVER['X-Real-IP'])) {
-		$client_addr = $_SERVER['X-Real-IP'];
-	} elseif (isset($_SERVER['X-ProxyUser-Ip'])) {
-		$client_addr = $_SERVER['X-ProxyUser-Ip'];
-	} elseif (isset($_SERVER['CF-Connecting-IP'])) {
-		$client_addr = $_SERVER['CF-Connecting-IP'];
-	} elseif (isset($_SERVER['True-Client-IP'])) {
-		$client_addr = $_SERVER['True-Client-IP'];
-	} elseif (isset($_SERVER['HTTP_X_FORWARDED'])) {
-		$client_addr = $_SERVER['HTTP_X_FORWARDED'];
-	} elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-		$client_addr = $_SERVER['HTTP_X_FORWARDED_FOR'];
-	} elseif (isset($_SERVER['HTTP_X_CLUSTER_CLIENT_IP'])) {
-		$client_addr = $_SERVER['HTTP_X_CLUSTER_CLIENT_IP'];
-	} elseif (isset($_SERVER['HTTP_FORWARDED_FOR'])) {
-		$client_addr = $_SERVER['HTTP_FORWARDED_FOR'];
-	} elseif (isset($_SERVER['HTTP_FORWARDED'])) {
-		$client_addr = $_SERVER['HTTP_FORWARDED'];
-	} elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
-		$client_addr = $_SERVER['HTTP_CLIENT_IP'];
-	} elseif (isset($_SERVER['REMOTE_ADDR'])) {
+	// local admin should configure the specific http header to specify remote ip, or return false
+//	if ( some_function_to_look_up_the_http_header_trusted_by_the_local_server() ) {
+//		$http_addr_headers = some_function_to_look_up_the_http_header_trusted_by_the_local_server();
+//	} else {
+		$http_addr_headers = array(
+			'HTTP_X_FORWARDED_FOR',
+			'HTTP_X_FORWARDED',
+			'HTTP_FORWARDED_FOR',
+			'HTTP_FORWARDED',
+			'HTTP_X_CLUSTER_CLIENT_IP',
+			'HTTP_X_CLIENT_IP',
+			'HTTP_CLIENT_IP',
+			'HTTP_X_REAL_IP',
+			'HTTP_X_PROXYUSER_IP',
+			'HTTP_CF_CONNECTING_IP',
+			'HTTP_TRUE_CLIENT_IP',
+			);
+//	}
+
+	$found_header = '';
+	
+	foreach ($http_addr_headers as $header) {
+		if (isset($_SERVER[$header])) {
+			if (!filter_var($_SERVER[$header], FILTER_VALIDATE_IP)) {
+				cacti_log('ERROR: Invalid remote client IP Address found in header (' . $header . ').');
+				return false;
+        		}
+			$client_addr = $_SERVER[$header];
+			$found_header = $header;
+			break;
+		}
+	}
+
+	if ((!isset($client_addr)) && isset($_SERVER['REMOTE_ADDR'])) {
 		$client_addr = $_SERVER['REMOTE_ADDR'];
 	}
 
